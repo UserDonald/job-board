@@ -1,4 +1,7 @@
-import { auth } from '@clerk/nextjs/server';
+import { SidebarMenuButton } from '@/components/ui/sidebar';
+import { SignOutButton } from '@/services/clerk/components/auth-buttons';
+import { getCurrentUser } from '@/services/clerk/lib/get-current-auth';
+import { LogOutIcon } from 'lucide-react';
 import { Suspense } from 'react';
 import { SidebarUserButtonClient } from './sidebar-user-button-client';
 
@@ -11,15 +14,18 @@ export function SidebarUserButton() {
 }
 
 async function SidebarUserSuspense() {
-  const { userId } = await auth();
+  const { user } = await getCurrentUser({ allData: true });
 
-  return (
-    <SidebarUserButtonClient
-      user={{
-        email: 'contact.donaldnash@gmail.com',
-        name: 'Donald Nash',
-        imageUrl: '',
-      }}
-    />
-  );
+  if (!user) {
+    return (
+      <SignOutButton>
+        <SidebarMenuButton>
+          <LogOutIcon />
+          <span>Log Out</span>
+        </SidebarMenuButton>
+      </SignOutButton>
+    );
+  }
+
+  return <SidebarUserButtonClient user={user} />;
 }
