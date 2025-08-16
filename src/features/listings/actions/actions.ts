@@ -3,6 +3,7 @@
 import { db } from '@/drizzle/db';
 import { JobListingTable } from '@/drizzle/schema';
 import { getCurrentOrganization } from '@/services/clerk/lib/get-current-auth';
+import { hasOrgUserPermission } from '@/services/clerk/lib/org-user-permissions';
 import { and, eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import z from 'zod';
@@ -15,7 +16,7 @@ import { jobListingSchema } from './schemas';
 export async function createJobListing(data: z.infer<typeof jobListingSchema>) {
   const { orgId } = await getCurrentOrganization();
 
-  if (!orgId) {
+  if (!orgId || !(await hasOrgUserPermission('job_listings:create'))) {
     return {
       error: true,
       message: "You don't have permission to create a job listing",
@@ -45,10 +46,10 @@ export async function updateJobListing(
 ) {
   const { orgId } = await getCurrentOrganization();
 
-  if (!orgId) {
+  if (!orgId || !(await hasOrgUserPermission('job_listings:update'))) {
     return {
       error: true,
-      message: "You don't have permission to create a job listing",
+      message: "You don't have permission to update a job listing",
     };
   }
 
@@ -56,7 +57,7 @@ export async function updateJobListing(
   if (!success) {
     return {
       error: true,
-      message: 'There was an error creating your job listing',
+      message: 'There was an error updating your job listing',
     };
   }
 
@@ -65,7 +66,7 @@ export async function updateJobListing(
   if (!jobListing) {
     return {
       error: true,
-      message: 'Job listing not found',
+      message: 'There was an error updating your job listing',
     };
   }
 
