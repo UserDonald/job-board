@@ -137,7 +137,7 @@ export async function toggleJobListingFeatured(id: string) {
     isFeatured: newFeaturedStatus,
   });
 
-  redirect(`/employer/job-listings`);
+  return { error: false };
 }
 
 export async function deleteJobListing(id: string) {
