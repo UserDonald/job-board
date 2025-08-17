@@ -31,3 +31,15 @@ export async function updateJobListing(
 
   return updatedJobListing;
 }
+
+export async function deleteJobListing(id: string) {
+  const [deletedJobListing] = await db
+    .delete(JobListingTable)
+    .where(eq(JobListingTable.id, id))
+    .returning({
+      id: JobListingTable.id,
+      organizationId: JobListingTable.organizationId,
+    });
+
+  return deletedJobListing;
+}
