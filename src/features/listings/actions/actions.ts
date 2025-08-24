@@ -2,8 +2,12 @@
 
 import { db } from '@/drizzle/db';
 import { JobListingTable } from '@/drizzle/schema';
-import { getCurrentOrganization } from '@/services/clerk/lib/get-current-auth';
+import {
+  getCurrentOrganization,
+  getCurrentUser,
+} from '@/services/clerk/lib/get-current-auth';
 import { hasOrgUserPermission } from '@/services/clerk/lib/org-user-permissions';
+import { getMatchingJobListings } from '@/services/inngest/ai/get-matching-job-listings';
 import { and, eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import z from 'zod';
@@ -17,7 +21,7 @@ import {
   hasReachedMaxPublishedJobListings,
 } from '../lib/plan-feature-helpers';
 import { getNextJobListingStatus } from '../lib/utils';
-import { jobListingSchema } from './schemas';
+import { jobListingAiSearchSchema, jobListingSchema } from './schemas';
 
 export async function createJobListing(
   unsafeData: z.infer<typeof jobListingSchema>
@@ -158,11 +162,58 @@ export async function deleteJobListing(id: string) {
   redirect(`/employer`);
 }
 
+export async function getAiJobListingSearchResults(
+  query: z.infer<typeof jobListingAiSearchSchema>
+): Promise<
+  { error: true; message: string } | { error: false; jobIds: string[] }
+> {
+  const { success, data } = jobListingAiSearchSchema.safeParse(query);
+  if (!success) {
+    return {
+      error: true,
+      message: 'There was an error processing your search query',
+    };
+  }
+
+  const { userId } = await getCurrentUser();
+  if (!userId) {
+    return {
+      error: true,
+      message: 'You need an account to use AI Job Search',
+    };
+  }
+
+  const allListings = await getPublicJobListings();
+  const matchedListings = await getMatchingJobListings(
+    data.query,
+    allListings,
+    { maxNumberOfJobs: 10 }
+  );
+
+  if (matchedListings.length === 0) {
+    return {
+      error: true,
+      message: 'No jobs match your search criteria',
+    };
+  }
+
+  return {
+    error: false,
+    jobIds: matchedListings,
+  };
+}
+
 async function getJobListing(id: string, orgId: string) {
   return db.query.JobListingTable.findFirst({
     where: and(
       eq(JobListingTable.id, id),
       eq(JobListingTable.organizationId, orgId)
     ),
+  });
+}
+
+async function getPublicJobListings() {
+  return db.query.JobListingTable.findMany({
+    where: eq(JobListingTable.status, 'published'),
   });
 }
