@@ -37,11 +37,7 @@ export default function InternalMarkdownEditor({
     <MDXEditor
       {...props}
       ref={ref}
-      className={cn(
-        markdownClassNames,
-        isDarkMode && 'dark-theme prose-invert',
-        className
-      )}
+      className={cn(markdownClassNames, isDarkMode && 'dark-theme', className)}
       suppressHtmlProcessing
       plugins={[
         headingsPlugin(),
