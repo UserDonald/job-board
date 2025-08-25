@@ -9,3 +9,21 @@ export async function insertUserNotificationSettings(
     .values(settings)
     .onConflictDoNothing();
 }
+
+export async function updateUserNotificationSettings(
+  userId: string,
+  settings: Partial<
+    Omit<typeof UserNotificationSettingsTable.$inferInsert, 'userId'>
+  >
+) {
+  await db
+    .insert(UserNotificationSettingsTable)
+    .values({
+      userId,
+      ...settings,
+    })
+    .onConflictDoUpdate({
+      target: [UserNotificationSettingsTable.userId],
+      set: settings,
+    });
+}

@@ -1,9 +1,9 @@
 import { env } from '@/data/env/server';
 import {
-    experienceLevels,
-    jobListingTypes,
-    locationRequirements,
-    wageIntervals,
+  experienceLevels,
+  jobListingTypes,
+  locationRequirements,
+  wageIntervals,
 } from '@/drizzle/schema';
 import { createAgent, gemini } from '@inngest/agent-kit';
 import z from 'zod';
@@ -25,7 +25,7 @@ const listingSchema = z.object({
 export async function getMatchingJobListings(
   prompt: string,
   listings: z.infer<typeof listingSchema>[],
-  { maxNumberOfJobs }: { maxNumberOfJobs?: number }
+  { maxNumberOfJobs }: { maxNumberOfJobs?: number } = {}
 ) {
   const NO_JOBS = 'NO_JOBS';
   const agent = createAgent({
