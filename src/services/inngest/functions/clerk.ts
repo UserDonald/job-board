@@ -1,9 +1,13 @@
 import { env } from '@/data/env/server';
 import {
+  deleteOrganizationUserSettings,
+  insertOrganizationUserSettings,
+} from '@/features/organization/db/organization-user-settings';
+import {
   deleteOrganization,
   insertOrganization,
   updateOrganization,
-} from '@/features/organization/db/orgs';
+} from '@/features/organization/db/organizations';
 import { insertUserNotificationSettings } from '@/features/users/db/user-notification-settings';
 import { deleteUser, insertUser, updateUser } from '@/features/users/db/users';
 import { NonRetriableError } from 'inngest';
@@ -205,6 +209,64 @@ export const clerkDeleteOrganization = inngest.createFunction(
       }
 
       await deleteOrganization(id);
+    });
+  }
+);
+
+export const clerkCreateOrgMembership = inngest.createFunction(
+  {
+    id: 'clerk/create-organization-user-settings',
+    name: 'Clerk - Create Organization User Settings',
+  },
+  {
+    event: 'clerk/organizationMembership.created',
+  },
+  async ({ event, step }) => {
+    await step.run('verify-webhook', async () => {
+      try {
+        verifyWebhook(event.data);
+      } catch {
+        throw new NonRetriableError('Webhook verification failed');
+      }
+    });
+
+    await step.run('create-organization-user-settings', async () => {
+      const userId = event.data.data.public_user_data.user_id;
+      const orgId = event.data.data.organization.id;
+
+      await insertOrganizationUserSettings({
+        userId,
+        organizationId: orgId,
+      });
+    });
+  }
+);
+
+export const clerkDeleteOrgMembership = inngest.createFunction(
+  {
+    id: 'clerk/delete-organization-user-settings',
+    name: 'Clerk - Delete Organization User Settings',
+  },
+  {
+    event: 'clerk/organizationMembership.deleted',
+  },
+  async ({ event, step }) => {
+    await step.run('verify-webhook', async () => {
+      try {
+        verifyWebhook(event.data);
+      } catch {
+        throw new NonRetriableError('Webhook verification failed');
+      }
+    });
+
+    await step.run('delete-organization-user-settings', async () => {
+      const userId = event.data.data.public_user_data.user_id;
+      const orgId = event.data.data.organization.id;
+
+      await deleteOrganizationUserSettings({
+        userId,
+        organizationId: orgId,
+      });
     });
   }
 );
