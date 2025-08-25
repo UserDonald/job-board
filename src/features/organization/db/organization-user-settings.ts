@@ -26,3 +26,24 @@ export async function deleteOrganizationUserSettings(
       )
     );
 }
+
+export async function updateOrganizationUserSettings(
+  { userId, organizationId }: { userId: string; organizationId: string },
+  settings: Partial<
+    Pick<
+      typeof OrganizationUserSettingsTable.$inferSelect,
+      'newApplicationEmailNotifications' | 'minimumRating'
+    >
+  >
+) {
+  await db
+    .insert(OrganizationUserSettingsTable)
+    .values({ ...settings, userId, organizationId })
+    .onConflictDoUpdate({
+      target: [
+        OrganizationUserSettingsTable.userId,
+        OrganizationUserSettingsTable.organizationId,
+      ],
+      set: settings,
+    });
+}

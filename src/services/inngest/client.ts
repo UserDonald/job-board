@@ -46,6 +46,22 @@ type Events = {
       name: string;
     };
   };
+  'app/email.daily-organization-user-applications': {
+    data: {
+      applications: {
+        organizationId: string;
+        organizationName: string;
+        jobListingId: string;
+        jobListingTitle: string;
+        userName: string;
+        rating: number | null;
+      }[];
+    };
+    user: {
+      email: string;
+      name: string;
+    };
+  };
 };
 
 // Create a client to send and receive events
