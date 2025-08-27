@@ -20,7 +20,7 @@ export const customFileRouter = {
     },
     { awaitServerData: true }
   )
-    .middleware(async ({ req }) => {
+    .middleware(async () => {
       const { userId } = await getCurrentUser();
 
       if (!userId) throw new UploadThingError('Unauthorized');
@@ -40,7 +40,6 @@ export const customFileRouter = {
         await uploadthing.deleteFiles(resumeFileKey);
       }
 
-      // TODO: Generate a summary of the resume
       await inngest.send({
         name: 'app/resume.uploaded',
         user: { id: userId },

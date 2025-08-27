@@ -5,8 +5,8 @@ type UserPermission =
   | 'job_listings:update'
   | 'job_listings:delete'
   | 'job_listings:change_status'
-  | 'job_listings_applications:change_rating'
-  | 'job_listings_applications:change_stage';
+  | 'job_listing_applications:change_rating'
+  | 'job_listing_applications:change_stage';
 
 export async function hasOrgUserPermission(permission: UserPermission) {
   const { has } = await auth();

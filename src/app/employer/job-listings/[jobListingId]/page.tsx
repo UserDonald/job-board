@@ -3,14 +3,23 @@ import { AsyncIf } from '@/components/async-if';
 import { MarkdownPartial } from '@/components/markdown/markdown-partial';
 import { MarkdownRenderer } from '@/components/markdown/markdown-renderer';
 import { Badge } from '@/components/ui/badge';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
 import { db } from '@/drizzle/db';
-import { JobListingStatus, JobListingTable } from '@/drizzle/schema';
+import {
+  JobListingApplicationTable,
+  JobListingStatus,
+  JobListingTable,
+} from '@/drizzle/schema';
+import {
+  ApplicationTable,
+  SkeletonApplicationTable,
+} from '@/features/applications/components/application-table';
 import {
   deleteJobListing,
   toggleJobListingFeatured,
@@ -42,7 +51,7 @@ type Props = {
   params: Promise<{ jobListingId: string }>;
 };
 
-export default async function JobListingPage(props: Props) {
+export default function JobListingPage(props: Props) {
   return (
     <Suspense>
       <SuspendedPage {...props} />
@@ -52,17 +61,11 @@ export default async function JobListingPage(props: Props) {
 
 async function SuspendedPage({ params }: Props) {
   const { orgId } = await getCurrentOrganization();
-
-  if (!orgId) {
-    return <div>You don&apos;t have permission to view this job listing</div>;
-  }
+  if (orgId == null) return null;
 
   const { jobListingId } = await params;
   const jobListing = await getJobListing(jobListingId, orgId);
-
-  if (!jobListing) {
-    return notFound();
-  }
+  if (jobListing == null) return notFound();
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto p-4 @container">
@@ -80,26 +83,12 @@ async function SuspendedPage({ params }: Props) {
           <AsyncIf
             condition={() => hasOrgUserPermission('job_listings:update')}
           >
-            <Link
-              href={`/employer/job-listings/${jobListing.id}/edit`}
-              className={buttonVariants({ variant: 'outline' })}
-            >
-              <EditIcon className="size-4" />
-              Edit
-            </Link>
-          </AsyncIf>
-          <AsyncIf
-            condition={() => hasOrgUserPermission('job_listings:delete')}
-          >
-            <ActionButton
-              action={deleteJobListing.bind(null, jobListing.id)}
-              variant="destructive"
-              requireAreYouSure
-              areYouSureDescription="This will immediately delete this job listing and all associated data."
-            >
-              <Trash2Icon className="size-4" />
-              Delete
-            </ActionButton>
+            <Button asChild variant="outline">
+              <Link href={`/employer/job-listings/${jobListing.id}/edit`}>
+                <EditIcon className="size-4" />
+                Edit
+              </Link>
+            </Button>
           </AsyncIf>
           <StatusUpdateButton status={jobListing.status} id={jobListing.id} />
           {jobListing.status === 'published' && (
@@ -108,15 +97,23 @@ async function SuspendedPage({ params }: Props) {
               id={jobListing.id}
             />
           )}
+          <AsyncIf
+            condition={() => hasOrgUserPermission('job_listings:delete')}
+          >
+            <ActionButton
+              variant="destructive"
+              action={deleteJobListing.bind(null, jobListing.id)}
+              requireAreYouSure
+            >
+              <Trash2Icon className="size-4" />
+              Delete
+            </ActionButton>
+          </AsyncIf>
         </div>
       </div>
+
       <MarkdownPartial
-        dialogMarkdown={
-          <MarkdownRenderer
-            className="prose-sm"
-            source={jobListing.description}
-          />
-        }
+        dialogMarkdown={<MarkdownRenderer source={jobListing.description} />}
         mainMarkdown={
           <MarkdownRenderer
             className="prose-sm"
@@ -125,6 +122,15 @@ async function SuspendedPage({ params }: Props) {
         }
         dialogTitle="Description"
       />
+
+      <Separator />
+
+      <div className="space-y-6">
+        <h2 className="text-xl font-semibold">Applications</h2>
+        <Suspense fallback={<SkeletonApplicationTable />}>
+          <Applications jobListingId={jobListingId} />
+        </Suspense>
+      </div>
     </div>
   );
 }
@@ -264,7 +270,7 @@ function featuredToggleButtonText(isFeatured: boolean) {
     return (
       <>
         <StarOffIcon className="size-4" />
-        Unfeature
+        UnFeature
       </>
     );
   }
@@ -275,6 +281,68 @@ function featuredToggleButtonText(isFeatured: boolean) {
       Feature
     </>
   );
+}
+
+async function Applications({ jobListingId }: { jobListingId: string }) {
+  const applications = await getJobListingApplications(jobListingId);
+
+  return (
+    <ApplicationTable
+      applications={applications.map((a) => ({
+        ...a,
+        user: {
+          ...a.user,
+          resume: a.user.resume
+            ? {
+                ...a.user.resume,
+                markdownSummary: a.user.resume.aiSummary ? (
+                  <MarkdownRenderer source={a.user.resume.aiSummary} />
+                ) : null,
+              }
+            : null,
+        },
+        coverLetterMarkdown: a.coverLetter ? (
+          <MarkdownRenderer source={a.coverLetter} />
+        ) : null,
+      }))}
+      canUpdateRating={await hasOrgUserPermission(
+        'job_listing_applications:change_rating'
+      )}
+      canUpdateStage={await hasOrgUserPermission(
+        'job_listing_applications:change_stage'
+      )}
+    />
+  );
+}
+
+async function getJobListingApplications(jobListingId: string) {
+  return await db.query.JobListingApplicationTable.findMany({
+    where: eq(JobListingApplicationTable.jobListingId, jobListingId),
+    columns: {
+      coverLetter: true,
+      createdAt: true,
+      stage: true,
+      rating: true,
+      jobListingId: true,
+    },
+    with: {
+      user: {
+        columns: {
+          id: true,
+          name: true,
+          imageUrl: true,
+        },
+        with: {
+          resume: {
+            columns: {
+              resumeFileUrl: true,
+              aiSummary: true,
+            },
+          },
+        },
+      },
+    },
+  });
 }
 
 async function getJobListing(id: string, orgId: string) {
